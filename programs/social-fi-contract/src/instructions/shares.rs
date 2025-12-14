@@ -264,10 +264,14 @@ pub fn sell_shares(ctx: Context<SellShares>, amount: u64, min_price_per_share: u
         SocialFiError::InsufficientLiquidity
     );
     
-    // Ensure minimum liquidity remains (10% of total volume)
-    let min_liquidity = creator_pool.total_volume
-        .checked_div(10)
-        .unwrap_or(0);
+    // Ensure minimum liquidity remains (based on platform config, default 10%)
+    let min_liquidity_bps = ctx.accounts.platform_config.min_liquidity_bps;
+    let min_liquidity = pool_balance
+        .checked_mul(min_liquidity_bps)
+        .ok_or(SocialFiError::ArithmeticOverflow)?
+        .checked_div(BPS_DENOMINATOR)
+        .ok_or(SocialFiError::ArithmeticUnderflow)?;
+    
     require!(
         pool_balance.saturating_sub(seller_receives) >= min_liquidity,
         SocialFiError::MinimumLiquidityRequired
@@ -299,6 +303,32 @@ pub fn sell_shares(ctx: Context<SellShares>, amount: u64, min_price_per_share: u
             .checked_sub(1)
             .ok_or(SocialFiError::ArithmeticUnderflow)?;
     }
+
+    // ===== INTERACTIONS (External calls LAST) =====
+    // Transfer SOL from pool vault (PDA) to seller using system_instruction
+    let creator_key = ctx.accounts.creator.key();
+    let vault_seeds = &[
+        b"pool_vault".as_ref(),
+        creator_key.as_ref(),
+        &[ctx.bumps.pool_vault],
+    ];
+    let signer_seeds = &[&vault_seeds[..]];
+    
+    let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
+        &ctx.accounts.pool_vault.key(),
+        &ctx.accounts.seller.key(),
+        seller_receives,
+    );
+    
+    anchor_lang::solana_program::program::invoke_signed(
+        &transfer_ix,
+        &[
+            ctx.accounts.pool_vault.to_account_info(),
+            ctx.accounts.seller.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+        signer_seeds,
+    )?;
 
     // Calculate average price for event
     let avg_price = total_return

@@ -22,6 +22,13 @@ pub struct MintUsername<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -76,6 +83,13 @@ pub struct ListUsername<'info> {
     
     #[account(mut)]
     pub seller: Signer<'info>,
+    
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
 }
@@ -140,12 +154,29 @@ pub struct BuyListing<'info> {
     #[account(mut)]
     pub seller: AccountInfo<'info>,
     
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+    
     pub system_program: Program<'info, System>,
 }
 
 pub fn buy_listing(ctx: Context<BuyListing>) -> Result<()> {
+    // ===== CHECKS =====
     let listing = &ctx.accounts.listing;
+    let price = listing.price;
+    let seller_key = listing.seller;
+    let username = listing.username.clone();
     
+    // ===== EFFECTS (Update state BEFORE external calls) =====
+    // Transfer NFT ownership
+    let username_nft = &mut ctx.accounts.username_nft;
+    username_nft.owner = ctx.accounts.buyer.key();
+
+    // ===== INTERACTIONS (External calls LAST) =====
     // Transfer payment to seller
     let cpi_context = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),
@@ -154,18 +185,14 @@ pub fn buy_listing(ctx: Context<BuyListing>) -> Result<()> {
             to: ctx.accounts.seller.to_account_info(),
         },
     );
-    transfer(cpi_context, listing.price)?;
-
-    // Transfer NFT ownership
-    let username_nft = &mut ctx.accounts.username_nft;
-    username_nft.owner = ctx.accounts.buyer.key();
+    transfer(cpi_context, price)?;
 
     let clock = Clock::get()?;
     emit!(UsernameSold {
-        seller: listing.seller,
+        seller: seller_key,
         buyer: ctx.accounts.buyer.key(),
-        username: listing.username.clone(),
-        price: listing.price,
+        username,
+        price,
         timestamp: clock.unix_timestamp,
     });
 
@@ -199,6 +226,13 @@ pub struct MakeOffer<'info> {
     
     #[account(mut)]
     pub buyer: Signer<'info>,
+    
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
 }
@@ -279,6 +313,7 @@ pub struct AcceptOffer<'info> {
 }
 
 pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
+    // ===== CHECKS =====
     let offer = &ctx.accounts.offer;
     let clock = Clock::get()?;
 
@@ -286,7 +321,15 @@ pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
         !offer.is_expired(clock.unix_timestamp),
         SocialFiError::OfferNotFound
     );
+    
+    let amount = offer.amount;
 
+    // ===== EFFECTS (Update state BEFORE external calls) =====
+    // Transfer NFT ownership
+    let username_nft = &mut ctx.accounts.username_nft;
+    username_nft.owner = ctx.accounts.buyer.key();
+
+    // ===== INTERACTIONS (External calls LAST) =====
     // Transfer payment from buyer to seller
     let cpi_context = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),
@@ -295,11 +338,7 @@ pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
             to: ctx.accounts.seller.to_account_info(),
         },
     );
-    transfer(cpi_context, offer.amount)?;
-
-    // Transfer NFT ownership
-    let username_nft = &mut ctx.accounts.username_nft;
-    username_nft.owner = ctx.accounts.buyer.key();
+    transfer(cpi_context, amount)?;
 
     emit!(OfferAccepted {
         seller: ctx.accounts.seller.key(),

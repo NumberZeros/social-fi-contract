@@ -95,23 +95,14 @@ pub struct SendTip<'info> {
 }
 
 pub fn send_tip(ctx: Context<SendTip>, amount: u64) -> Result<()> {
+    // ===== CHECKS =====
     require!(amount > 0, SocialFiError::InvalidAmount);
     require!(
         ctx.accounts.sender.key() != ctx.accounts.recipient.key(),
         SocialFiError::CannotTipSelf
     );
 
-    // Transfer SOL
-    let cpi_context = CpiContext::new(
-        ctx.accounts.system_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.sender.to_account_info(),
-            to: ctx.accounts.recipient.to_account_info(),
-        },
-    );
-    transfer(cpi_context, amount)?;
-
-    // Update profiles
+    // ===== EFFECTS (Update state BEFORE external calls) =====
     let sender_profile = &mut ctx.accounts.sender_profile;
     let recipient_profile = &mut ctx.accounts.recipient_profile;
     
@@ -124,6 +115,16 @@ pub fn send_tip(ctx: Context<SendTip>, amount: u64) -> Result<()> {
         .total_tips_received
         .checked_add(amount)
         .ok_or(SocialFiError::ArithmeticOverflow)?;
+
+    // ===== INTERACTIONS (External calls LAST) =====
+    let cpi_context = CpiContext::new(
+        ctx.accounts.system_program.to_account_info(),
+        Transfer {
+            from: ctx.accounts.sender.to_account_info(),
+            to: ctx.accounts.recipient.to_account_info(),
+        },
+    );
+    transfer(cpi_context, amount)?;
 
     let clock = Clock::get()?;
     emit!(TipSent {

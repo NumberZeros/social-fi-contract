@@ -20,6 +20,13 @@ pub struct StakeTokens<'info> {
     #[account(mut)]
     pub staker: Signer<'info>,
     
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -95,6 +102,13 @@ pub struct UnstakeTokens<'info> {
     
     #[account(mut)]
     pub staker: Signer<'info>,
+    
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
 }
 
 pub fn unstake_tokens(ctx: Context<UnstakeTokens>) -> Result<()> {
@@ -148,6 +162,13 @@ pub struct CreateProposal<'info> {
     
     #[account(mut)]
     pub proposer: Signer<'info>,
+    
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
 }
@@ -245,6 +266,13 @@ pub struct CastVote<'info> {
     
     #[account(mut)]
     pub voter: Signer<'info>,
+    
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
 }
