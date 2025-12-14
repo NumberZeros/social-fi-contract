@@ -84,6 +84,7 @@ pub struct BuyShares<'info> {
 }
 
 pub fn buy_shares(ctx: Context<BuyShares>, amount: u64, max_price_per_share: u64) -> Result<()> {
+    // ===== CHECKS =====
     require!(amount > 0, SocialFiError::InvalidAmount);
     require!(amount <= 100, SocialFiError::InvalidAmount); // Max 100 per tx
 
@@ -102,16 +103,7 @@ pub fn buy_shares(ctx: Context<BuyShares>, amount: u64, max_price_per_share: u64
         SocialFiError::SlippageExceeded
     );
     
-    // Transfer payment to pool vault
-    let cpi_context = CpiContext::new(
-        ctx.accounts.system_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.buyer.to_account_info(),
-            to: ctx.accounts.pool_vault.to_account_info(),
-        },
-    );
-    transfer(cpi_context, total_cost)?;
-
+    // ===== EFFECTS (Update state BEFORE external calls) =====
     // Update creator pool
     let is_new_holder = share_holding.amount == 0;
     
@@ -160,7 +152,18 @@ pub fn buy_shares(ctx: Context<BuyShares>, amount: u64, max_price_per_share: u64
         share_holding.bump = ctx.bumps.share_holding;
     }
 
-    // Calculate average price for event
+    // ===== INTERACTIONS (External calls LAST) =====
+    // Transfer payment to pool vault
+    let cpi_context = CpiContext::new(
+        ctx.accounts.system_program.to_account_info(),
+        Transfer {
+            from: ctx.accounts.buyer.to_account_info(),
+            to: ctx.accounts.pool_vault.to_account_info(),
+        },
+    );
+    transfer(cpi_context, total_cost)?;
+
+    // Emit event after successful transfer
     let avg_price = total_cost
         .checked_div(amount)
         .ok_or(SocialFiError::ArithmeticUnderflow)?;
@@ -221,6 +224,7 @@ pub struct SellShares<'info> {
 }
 
 pub fn sell_shares(ctx: Context<SellShares>, amount: u64, min_price_per_share: u64) -> Result<()> {
+    // ===== CHECKS =====
     require!(amount > 0, SocialFiError::InvalidAmount);
     require!(amount <= 100, SocialFiError::InvalidAmount); // Max 100 per tx
     
@@ -269,25 +273,7 @@ pub fn sell_shares(ctx: Context<SellShares>, amount: u64, min_price_per_share: u
         SocialFiError::MinimumLiquidityRequired
     );
     
-    // Transfer from pool vault to seller using PDA signer
-    let creator_key = ctx.accounts.creator.key();
-    let vault_seeds = &[
-        b"pool_vault",
-        creator_key.as_ref(),
-        &[ctx.bumps.pool_vault],
-    ];
-    let signer_seeds = &[&vault_seeds[..]];
-    
-    let cpi_context = CpiContext::new_with_signer(
-        ctx.accounts.system_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.pool_vault.to_account_info(),
-            to: ctx.accounts.seller.to_account_info(),
-        },
-        signer_seeds,
-    );
-    transfer(cpi_context, seller_receives)?;
-
+    // ===== EFFECTS (Update state BEFORE external calls) =====
     // Update creator pool
     creator_pool.supply = creator_pool
         .supply
