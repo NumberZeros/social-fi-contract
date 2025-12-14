@@ -177,7 +177,13 @@ pub fn buy_listing(ctx: Context<BuyListing>) -> Result<()> {
 #[derive(Accounts)]
 pub struct MakeOffer<'info> {
     #[account(
-        seeds = [LISTING_SEED, listing.seller.as_ref()],
+        seeds = [USERNAME_NFT_SEED, username_nft.username.as_bytes()],
+        bump = username_nft.bump
+    )]
+    pub username_nft: Account<'info, UsernameNFT>,
+    
+    #[account(
+        seeds = [LISTING_SEED, username_nft.key().as_ref()],
         bump = listing.bump
     )]
     pub listing: Account<'info, Listing>,
@@ -259,9 +265,8 @@ pub struct AcceptOffer<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
     
-    /// CHECK: Buyer address verified through offer
     #[account(mut)]
-    pub buyer: AccountInfo<'info>,
+    pub buyer: Signer<'info>,
     
     pub system_program: Program<'info, System>,
 }

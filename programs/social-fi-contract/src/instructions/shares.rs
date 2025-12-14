@@ -59,11 +59,18 @@ pub struct BuyShares<'info> {
     )]
     pub share_holding: Account<'info, ShareHolding>,
     
+    /// CHECK: Pool vault PDA for holding liquidity
+    #[account(
+        mut,
+        seeds = [b"pool_vault", creator.key().as_ref()],
+        bump
+    )]
+    pub pool_vault: SystemAccount<'info>,
+    
     #[account(mut)]
     pub buyer: Signer<'info>,
     
     /// CHECK: Creator address verified through PDA
-    #[account(mut)]
     pub creator: AccountInfo<'info>,
     
     pub system_program: Program<'info, System>,
@@ -78,12 +85,12 @@ pub fn buy_shares(ctx: Context<BuyShares>, amount: u64) -> Result<()> {
     // Calculate total cost
     let total_cost = creator_pool.calculate_buy_cost(amount)?;
     
-    // Transfer payment to creator
+    // Transfer payment to pool vault
     let cpi_context = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),
         Transfer {
             from: ctx.accounts.buyer.to_account_info(),
-            to: ctx.accounts.creator.to_account_info(),
+            to: ctx.accounts.pool_vault.to_account_info(),
         },
     );
     transfer(cpi_context, total_cost)?;
@@ -172,11 +179,18 @@ pub struct SellShares<'info> {
     )]
     pub share_holding: Account<'info, ShareHolding>,
     
+    /// CHECK: Pool vault PDA for holding liquidity
+    #[account(
+        mut,
+        seeds = [b"pool_vault", creator.key().as_ref()],
+        bump
+    )]
+    pub pool_vault: SystemAccount<'info>,
+    
     #[account(mut)]
     pub seller: Signer<'info>,
     
     /// CHECK: Creator address verified through PDA
-    #[account(mut)]
     pub creator: AccountInfo<'info>,
     
     pub system_program: Program<'info, System>,
@@ -205,13 +219,22 @@ pub fn sell_shares(ctx: Context<SellShares>, amount: u64) -> Result<()> {
         .checked_sub(fee)
         .ok_or(SocialFiError::ArithmeticUnderflow)?;
     
-    // Transfer from creator to seller (creator received funds on buy)
-    let cpi_context = CpiContext::new(
+    // Transfer from pool vault to seller using PDA signer
+    let creator_key = ctx.accounts.creator.key();
+    let vault_seeds = &[
+        b"pool_vault",
+        creator_key.as_ref(),
+        &[ctx.bumps.pool_vault],
+    ];
+    let signer_seeds = &[&vault_seeds[..]];
+    
+    let cpi_context = CpiContext::new_with_signer(
         ctx.accounts.system_program.to_account_info(),
         Transfer {
-            from: ctx.accounts.creator.to_account_info(),
+            from: ctx.accounts.pool_vault.to_account_info(),
             to: ctx.accounts.seller.to_account_info(),
         },
+        signer_seeds,
     );
     transfer(cpi_context, seller_receives)?;
 

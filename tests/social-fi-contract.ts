@@ -164,6 +164,11 @@ describe("social-fi-contract", () => {
         program.programId
       );
 
+      const [poolVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("pool_vault"), creator.publicKey.toBuffer()],
+        program.programId
+      );
+
       const sharesToBuy = new BN(5);
 
       await program.methods
@@ -171,6 +176,7 @@ describe("social-fi-contract", () => {
         .accounts({
           creatorPool,
           shareHolding,
+          poolVault,
           buyer: user1.publicKey,
           creator: creator.publicKey,
           systemProgram: SystemProgram.programId,
@@ -196,6 +202,11 @@ describe("social-fi-contract", () => {
         program.programId
       );
 
+      const [poolVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("pool_vault"), creator.publicKey.toBuffer()],
+        program.programId
+      );
+
       const sharesToSell = new BN(2);
 
       await program.methods
@@ -203,6 +214,7 @@ describe("social-fi-contract", () => {
         .accounts({
           creatorPool,
           shareHolding,
+          poolVault,
           seller: user1.publicKey,
           creator: creator.publicKey,
           systemProgram: SystemProgram.programId,
@@ -545,8 +557,9 @@ describe("social-fi-contract", () => {
       await program.methods
         .makeOffer(offerPrice)
         .accounts({
-          offer,
+          usernameNft,
           listing,
+          offer,
           buyer: user2.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -554,7 +567,7 @@ describe("social-fi-contract", () => {
         .rpc();
 
       const offerAccount = await program.account.offer.fetch(offer);
-      expect(offerAccount.price.toString()).to.equal(offerPrice.toString());
+      expect(offerAccount.amount.toString()).to.equal(offerPrice.toString());
     });
 
     it("Accepts offer", async () => {
@@ -583,7 +596,7 @@ describe("social-fi-contract", () => {
           buyer: user2.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([user1])
+        .signers([user1, user2])
         .rpc();
 
       // Verify NFT ownership transferred
