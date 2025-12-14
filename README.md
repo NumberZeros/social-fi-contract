@@ -2,6 +2,14 @@
 
 A Solana smart contract for Social Finance (Social Fi) using Anchor framework.
 
+## 📊 Project Status
+
+- **Implementation:** ✅ Complete (2,462 lines, 28 instructions)
+- **Build:** ✅ Successful (633 KB binary)
+- **Tests:** 🟡 In Progress (9/18 passing, 50%)
+- **Documentation:** ✅ Complete (API reference, architecture)
+- **Deployment:** ⏳ Pending (devnet ready)
+
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install)
@@ -80,6 +88,16 @@ Run all tests:
 ```bash
 anchor test
 ```
+
+**Current Test Status:** 9/18 passing (50%)
+- ✅ User profiles & tipping (2/2)
+- ⚠️ Bonding curve shares (1/3)
+- ⚠️ Subscriptions (1/3)
+- ⚠️ Groups (2/4)
+- ⚠️ Governance (3/5)
+- ❌ Marketplace (0/5)
+
+See [TESTING_SUMMARY.md](./TESTING_SUMMARY.md) for detailed analysis.
 
 Run specific test file:
 
@@ -170,6 +188,17 @@ solana transaction-history
 solana airdrop 2
 ```
 
+## 📚 Documentation
+
+- **[API_REFERENCE.md](./API_REFERENCE.md)** - Complete instruction reference with examples
+- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical overview and metrics
+- **[TESTING_SUMMARY.md](./TESTING_SUMMARY.md)** - Test results and issue analysis
+- **[TESTING_COMPLETE.md](./TESTING_COMPLETE.md)** - Testing phase completion report
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and architecture
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment guide for all networks
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Development guidelines
+- **[SECURITY.md](./SECURITY.md)** - Security considerations
+
 ## Troubleshooting
 
 ### Common Issues
@@ -189,6 +218,11 @@ solana airdrop 2
 4. **"Insufficient balance"**
    - Airdrop SOL: `solana airdrop 2` (devnet/testnet only)
    - For mainnet, you need to fund from an exchange
+
+5. **"Test failures"**
+   - See [TESTING_SUMMARY.md](./TESTING_SUMMARY.md) for known issues
+   - Run `anchor test --skip-local-validator` to use existing validator
+   - Check logs in `.anchor/program-logs/`
 
 ## References
 
