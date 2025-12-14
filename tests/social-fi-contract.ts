@@ -179,7 +179,7 @@ describe("social-fi-contract", () => {
         .rpc();
 
       const holding = await program.account.shareHolding.fetch(shareHolding);
-      expect(holding.sharesOwned.toNumber()).to.equal(sharesToBuy.toNumber());
+      expect(holding.amount.toNumber()).to.equal(sharesToBuy.toNumber());
 
       const pool = await program.account.creatorPool.fetch(creatorPool);
       expect(pool.supply.toNumber()).to.equal(sharesToBuy.toNumber());
@@ -211,7 +211,7 @@ describe("social-fi-contract", () => {
         .rpc();
 
       const holding = await program.account.shareHolding.fetch(shareHolding);
-      expect(holding.sharesOwned.toNumber()).to.equal(3);
+      expect(holding.amount.toNumber()).to.equal(3);
     });
   });
 
@@ -252,7 +252,7 @@ describe("social-fi-contract", () => {
       );
 
       const [subscription] = PublicKey.findProgramAddressSync(
-        [Buffer.from("subscription"), user1.publicKey.toBuffer(), subscriptionTier.toBuffer()],
+        [Buffer.from("subscription"), user1.publicKey.toBuffer(), creator.publicKey.toBuffer(), tierId.toArrayLike(Buffer, "le", 8)],
         program.programId
       );
 
@@ -280,7 +280,7 @@ describe("social-fi-contract", () => {
       );
 
       const [subscription] = PublicKey.findProgramAddressSync(
-        [Buffer.from("subscription"), user1.publicKey.toBuffer(), subscriptionTier.toBuffer()],
+        [Buffer.from("subscription"), user1.publicKey.toBuffer(), creator.publicKey.toBuffer(), tierId.toArrayLike(Buffer, "le", 8)],
         program.programId
       );
 
@@ -294,7 +294,7 @@ describe("social-fi-contract", () => {
         .rpc();
 
       const sub = await program.account.subscription.fetch(subscription);
-      expect(sub.cancelled).to.be.true;
+      expect(sub.status).to.equal(2); // 2 = cancelled
     });
   });
 
@@ -364,7 +364,7 @@ describe("social-fi-contract", () => {
         program.programId
       );
 
-      const [authorityMember] = PublicKey.findProgramAddressSync(
+      const [adminMember] = PublicKey.findProgramAddressSync(
         [Buffer.from("group_member"), group.toBuffer(), creator.publicKey.toBuffer()],
         program.programId
       );
@@ -374,9 +374,9 @@ describe("social-fi-contract", () => {
         .updateMemberRole(2)
         .accounts({
           group,
+          adminMember,
           targetMember,
-          authorityMember,
-          authority: creator.publicKey,
+          admin: creator.publicKey,
         })
         .signers([creator])
         .rpc();
@@ -485,7 +485,7 @@ describe("social-fi-contract", () => {
         .mintUsername(NFT_USERNAME)
         .accounts({
           usernameNft,
-          minter: user1.publicKey,
+          owner: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
         .signers([user1])
