@@ -1,8 +1,16 @@
 {
+  "name": "social-fi-contract",
+  "version": "0.1.0",
+  "description": "Solana smart contract for Social Finance using Anchor",
   "license": "ISC",
   "scripts": {
+    "build": "anchor build",
+    "test": "anchor test",
+    "deploy": "anchor deploy",
+    "dev": "anchor test --skip-deploy",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "idl": "anchor idl fetch 8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP -o target/idl/social_fi_contract.json"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1"
