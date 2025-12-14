@@ -76,14 +76,24 @@ pub struct BuyShares<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn buy_shares(ctx: Context<BuyShares>, amount: u64) -> Result<()> {
+pub fn buy_shares(ctx: Context<BuyShares>, amount: u64, max_price_per_share: u64) -> Result<()> {
     require!(amount > 0, SocialFiError::InvalidAmount);
+    require!(amount <= 100, SocialFiError::InvalidAmount); // Max 100 per tx
 
     let creator_pool = &mut ctx.accounts.creator_pool;
     let share_holding = &mut ctx.accounts.share_holding;
     
     // Calculate total cost
     let total_cost = creator_pool.calculate_buy_cost(amount)?;
+    
+    // Slippage protection: check average price
+    let avg_price = total_cost
+        .checked_div(amount)
+        .ok_or(SocialFiError::ArithmeticUnderflow)?;
+    require!(
+        avg_price <= max_price_per_share,
+        SocialFiError::SlippageExceeded
+    );
     
     // Transfer payment to pool vault
     let cpi_context = CpiContext::new(
@@ -196,8 +206,9 @@ pub struct SellShares<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn sell_shares(ctx: Context<SellShares>, amount: u64) -> Result<()> {
+pub fn sell_shares(ctx: Context<SellShares>, amount: u64, min_price_per_share: u64) -> Result<()> {
     require!(amount > 0, SocialFiError::InvalidAmount);
+    require!(amount <= 100, SocialFiError::InvalidAmount); // Max 100 per tx
     
     let share_holding = &ctx.accounts.share_holding;
     require!(
@@ -218,6 +229,31 @@ pub fn sell_shares(ctx: Context<SellShares>, amount: u64) -> Result<()> {
     let seller_receives = total_return
         .checked_sub(fee)
         .ok_or(SocialFiError::ArithmeticUnderflow)?;
+    
+    // Slippage protection: check average price received
+    let avg_price_received = seller_receives
+        .checked_div(amount)
+        .ok_or(SocialFiError::ArithmeticUnderflow)?;
+    require!(
+        avg_price_received >= min_price_per_share,
+        SocialFiError::SlippageExceeded
+    );
+    
+    // Check pool has sufficient liquidity
+    let pool_balance = ctx.accounts.pool_vault.lamports();
+    require!(
+        pool_balance >= seller_receives,
+        SocialFiError::InsufficientLiquidity
+    );
+    
+    // Ensure minimum liquidity remains (10% of total volume)
+    let min_liquidity = creator_pool.total_volume
+        .checked_div(10)
+        .unwrap_or(0);
+    require!(
+        pool_balance.saturating_sub(seller_receives) >= min_liquidity,
+        SocialFiError::MinimumLiquidityRequired
+    );
     
     // Transfer from pool vault to seller using PDA signer
     let creator_key = ctx.accounts.creator.key();

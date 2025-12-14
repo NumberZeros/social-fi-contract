@@ -40,24 +40,50 @@ impl CreatorPool {
     pub const LEN: usize = 8 + 32 + 8 + 8 + 8 + 8 + 8 + 1;
 
     pub fn calculate_price(&self, supply: u64) -> Result<u64> {
+        // Enforce maximum supply to prevent overflow
+        require!(
+            supply <= MAX_SUPPLY,
+            crate::errors::SocialFiError::SupplyTooHigh
+        );
+        
+        // Use u128 for intermediate calculations to prevent overflow
+        let supply_u128 = supply as u128;
+        let price_scale_u128 = PRICE_SCALE as u128;
+        let base_price_u128 = self.base_price as u128;
+        
         // price = base_price * (supply / PRICE_SCALE)^2
-        let supply_scaled = supply
-            .checked_div(PRICE_SCALE)
+        let supply_scaled = supply_u128
+            .checked_div(price_scale_u128)
             .ok_or(error!(crate::errors::SocialFiError::BondingCurveOverflow))?;
         
         let price_multiplier = supply_scaled
             .checked_mul(supply_scaled)
             .ok_or(error!(crate::errors::SocialFiError::BondingCurveOverflow))?;
         
-        let price = self.base_price
+        let price_u128 = base_price_u128
             .checked_mul(price_multiplier)
             .ok_or(error!(crate::errors::SocialFiError::BondingCurveOverflow))?;
+        
+        // Cap at MAX_PRICE and convert back to u64
+        let max_price_u128 = MAX_PRICE as u128;
+        let price_capped = price_u128.min(max_price_u128);
+        let price = price_capped as u64;
         
         Ok(price.max(self.base_price))
     }
 
     pub fn calculate_buy_cost(&self, amount: u64) -> Result<u64> {
-        let mut total_cost: u64 = 0;
+        // Check that resulting supply won't exceed max
+        let final_supply = self.supply
+            .checked_add(amount)
+            .ok_or(error!(crate::errors::SocialFiError::ArithmeticOverflow))?;
+        require!(
+            final_supply <= MAX_SUPPLY,
+            crate::errors::SocialFiError::SupplyTooHigh
+        );
+        
+        // Use u128 for total_cost to prevent overflow
+        let mut total_cost: u128 = 0;
         let current_supply = self.supply;
         
         for i in 0..amount {
@@ -69,15 +95,21 @@ impl CreatorPool {
             
             let price = self.calculate_price(new_supply)?;
             total_cost = total_cost
-                .checked_add(price)
+                .checked_add(price as u128)
                 .ok_or(error!(crate::errors::SocialFiError::ArithmeticOverflow))?;
         }
         
-        Ok(total_cost)
+        // Convert back to u64 with safety check
+        require!(
+            total_cost <= u64::MAX as u128,
+            crate::errors::SocialFiError::PriceTooHigh
+        );
+        Ok(total_cost as u64)
     }
 
     pub fn calculate_sell_return(&self, amount: u64) -> Result<u64> {
-        let mut total_return: u64 = 0;
+        // Use u128 for total_return to prevent overflow
+        let mut total_return: u128 = 0;
         let current_supply = self.supply;
         
         for i in 0..amount {
@@ -87,18 +119,21 @@ impl CreatorPool {
             
             let price = self.calculate_price(supply_after_sell)?;
             total_return = total_return
-                .checked_add(price)
+                .checked_add(price as u128)
                 .ok_or(error!(crate::errors::SocialFiError::ArithmeticOverflow))?;
         }
         
+        // Convert to u64 for fee calculation
+        let total_return_u64 = total_return.min(u64::MAX as u128) as u64;
+        
         // Apply 10% sell fee
-        let fee = total_return
+        let fee = total_return_u64
             .checked_mul(SELL_FEE_BPS)
             .ok_or(error!(crate::errors::SocialFiError::ArithmeticOverflow))?
             .checked_div(BPS_DENOMINATOR)
             .ok_or(error!(crate::errors::SocialFiError::ArithmeticUnderflow))?;
         
-        total_return
+        total_return_u64
             .checked_sub(fee)
             .ok_or(error!(crate::errors::SocialFiError::ArithmeticUnderflow))
     }
@@ -320,6 +355,21 @@ pub struct Vote {
 
 impl Vote {
     pub const LEN: usize = 8 + 32 + 32 + 1 + 8 + 8 + 1;
+}
+
+// ==================== Platform Config ====================
+
+#[account]
+pub struct PlatformConfig {
+    pub admin: Pubkey,              // 32
+    pub fee_collector: Pubkey,      // 32
+    pub paused: bool,               // 1
+    pub min_liquidity_bps: u64,     // 8 (basis points, e.g., 1000 = 10%)
+    pub bump: u8,                   // 1
+}
+
+impl PlatformConfig {
+    pub const LEN: usize = 8 + 32 + 32 + 1 + 8 + 1;
 }
 
 // ==================== Marketplace ====================

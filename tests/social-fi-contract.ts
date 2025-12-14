@@ -170,9 +170,10 @@ describe("social-fi-contract", () => {
       );
 
       const sharesToBuy = new BN(5);
+      const maxPricePerShare = new BN(1_000_000_000); // 1 SOL max per share
 
       await program.methods
-        .buyShares(sharesToBuy)
+        .buyShares(sharesToBuy, maxPricePerShare)
         .accounts({
           creatorPool,
           shareHolding,
@@ -208,9 +209,10 @@ describe("social-fi-contract", () => {
       );
 
       const sharesToSell = new BN(2);
+      const minPricePerShare = new BN(0); // Accept any price for test
 
       await program.methods
-        .sellShares(sharesToSell)
+        .sellShares(sharesToSell, minPricePerShare)
         .accounts({
           creatorPool,
           shareHolding,

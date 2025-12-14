@@ -14,6 +14,32 @@ use instructions::*;
 pub mod social_fi_contract {
     use super::*;
 
+    // ==================== Platform Management ====================
+    
+    pub fn initialize_platform(ctx: Context<InitializePlatform>, fee_collector: Pubkey) -> Result<()> {
+        instructions::platform::initialize_platform(ctx, fee_collector)
+    }
+    
+    pub fn pause_platform(ctx: Context<UpdatePlatform>) -> Result<()> {
+        instructions::platform::pause_platform(ctx)
+    }
+    
+    pub fn unpause_platform(ctx: Context<UpdatePlatform>) -> Result<()> {
+        instructions::platform::unpause_platform(ctx)
+    }
+    
+    pub fn update_admin(ctx: Context<UpdatePlatform>, new_admin: Pubkey) -> Result<()> {
+        instructions::platform::update_admin(ctx, new_admin)
+    }
+    
+    pub fn update_fee_collector(ctx: Context<UpdatePlatform>, new_fee_collector: Pubkey) -> Result<()> {
+        instructions::platform::update_fee_collector(ctx, new_fee_collector)
+    }
+    
+    pub fn update_min_liquidity(ctx: Context<UpdatePlatform>, new_min_liquidity_bps: u64) -> Result<()> {
+        instructions::platform::update_min_liquidity(ctx, new_min_liquidity_bps)
+    }
+
     // ==================== User & Tipping ====================
     
     pub fn initialize_user(ctx: Context<InitializeUser>, username: String) -> Result<()> {
@@ -30,12 +56,12 @@ pub mod social_fi_contract {
         instructions::shares::initialize_creator_pool(ctx)
     }
 
-    pub fn buy_shares(ctx: Context<BuyShares>, amount: u64) -> Result<()> {
-        instructions::shares::buy_shares(ctx, amount)
+    pub fn buy_shares(ctx: Context<BuyShares>, amount: u64, max_price_per_share: u64) -> Result<()> {
+        instructions::shares::buy_shares(ctx, amount, max_price_per_share)
     }
 
-    pub fn sell_shares(ctx: Context<SellShares>, amount: u64) -> Result<()> {
-        instructions::shares::sell_shares(ctx, amount)
+    pub fn sell_shares(ctx: Context<SellShares>, amount: u64, min_price_per_share: u64) -> Result<()> {
+        instructions::shares::sell_shares(ctx, amount, min_price_per_share)
     }
 
     // ==================== Subscriptions ====================

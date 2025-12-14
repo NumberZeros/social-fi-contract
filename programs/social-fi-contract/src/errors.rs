@@ -130,4 +130,28 @@ pub enum SocialFiError {
     
     #[msg("Invalid timestamp")]
     InvalidTimestamp,
+    
+    #[msg("Supply exceeds maximum limit")]
+    SupplyTooHigh,
+    
+    #[msg("Price exceeds maximum limit")]
+    PriceTooHigh,
+    
+    #[msg("Slippage tolerance exceeded")]
+    SlippageExceeded,
+    
+    #[msg("Contract is paused")]
+    ContractPaused,
+    
+    #[msg("Unauthorized: admin only")]
+    Unauthorized,
+    
+    #[msg("Reentrancy detected")]
+    Reentrancy,
+    
+    #[msg("Minimum liquidity requirement not met")]
+    MinimumLiquidityRequired,
+    
+    #[msg("Insufficient liquidity in pool")]
+    InsufficientLiquidity,
 }

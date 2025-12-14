@@ -17,6 +17,8 @@ pub const OFFER_SEED: &[u8] = b"offer";
 pub const BASE_PRICE: u64 = 10_000_000; // 0.01 SOL in lamports
 pub const PRICE_SCALE: u64 = 100; // Scale factor for bonding curve
 pub const SELL_FEE_BPS: u64 = 1000; // 10% in basis points
+pub const MAX_SUPPLY: u64 = 1_000_000; // Maximum supply to prevent overflow
+pub const MAX_PRICE: u64 = u64::MAX / 1000; // Max price cap
 
 // Governance Constants
 pub const MIN_VOTING_POWER: u64 = 1000;
