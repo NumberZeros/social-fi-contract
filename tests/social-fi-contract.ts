@@ -38,6 +38,26 @@ describe("social-fi-contract", () => {
     
     // Wait for airdrops to confirm
     await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Initialize platform config
+    const [platformConfig] = PublicKey.findProgramAddressSync(
+      [Buffer.from("platform_config")],
+      program.programId
+    );
+    
+    try {
+      await program.methods
+        .initializePlatform(provider.wallet.publicKey)
+        .accounts({
+          platformConfig,
+          admin: provider.wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+    } catch (e) {
+      // Platform config might already exist from previous tests
+      console.log("Platform config already initialized");
+    }
   });
 
   describe("User Profile & Tipping", () => {
@@ -169,6 +189,11 @@ describe("social-fi-contract", () => {
         program.programId
       );
 
+      const [platformConfig] = PublicKey.findProgramAddressSync(
+        [Buffer.from("platform_config")],
+        program.programId
+      );
+
       const sharesToBuy = new BN(5);
       const maxPricePerShare = new BN(1_000_000_000); // 1 SOL max per share
 
@@ -180,6 +205,7 @@ describe("social-fi-contract", () => {
           poolVault,
           buyer: user1.publicKey,
           creator: creator.publicKey,
+          platformConfig,
           systemProgram: SystemProgram.programId,
         })
         .signers([user1])
@@ -208,6 +234,11 @@ describe("social-fi-contract", () => {
         program.programId
       );
 
+      const [platformConfig] = PublicKey.findProgramAddressSync(
+        [Buffer.from("platform_config")],
+        program.programId
+      );
+
       const sharesToSell = new BN(2);
       const minPricePerShare = new BN(0); // Accept any price for test
 
@@ -219,6 +250,7 @@ describe("social-fi-contract", () => {
           poolVault,
           seller: user1.publicKey,
           creator: creator.publicKey,
+          platformConfig,
           systemProgram: SystemProgram.programId,
         })
         .signers([user1])
@@ -588,6 +620,11 @@ describe("social-fi-contract", () => {
         program.programId
       );
 
+      const [platformConfig] = PublicKey.findProgramAddressSync(
+        [Buffer.from("platform_config")],
+        program.programId
+      );
+
       await program.methods
         .acceptOffer()
         .accounts({
@@ -596,6 +633,7 @@ describe("social-fi-contract", () => {
           offer,
           seller: user1.publicKey,
           buyer: user2.publicKey,
+          platformConfig,
           systemProgram: SystemProgram.programId,
         })
         .signers([user1, user2])

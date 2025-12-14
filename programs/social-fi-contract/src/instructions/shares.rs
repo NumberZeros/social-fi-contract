@@ -73,6 +73,13 @@ pub struct BuyShares<'info> {
     /// CHECK: Creator address verified through PDA
     pub creator: AccountInfo<'info>,
     
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -202,6 +209,13 @@ pub struct SellShares<'info> {
     
     /// CHECK: Creator address verified through PDA
     pub creator: AccountInfo<'info>,
+    
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
 }
