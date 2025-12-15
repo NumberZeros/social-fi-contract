@@ -190,3 +190,11 @@ pub struct OfferAccepted {
     pub amount: u64,
     pub timestamp: i64,
 }
+
+#[event]
+pub struct OfferCancelled {
+    pub buyer: Pubkey,
+    pub listing: Pubkey,
+    pub amount: u64,
+    pub timestamp: i64,
+}

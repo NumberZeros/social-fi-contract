@@ -158,4 +158,8 @@ pub mod social_fi_contract {
     pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
         instructions::marketplace::accept_offer(ctx)
     }
+
+    pub fn cancel_offer(ctx: Context<CancelOffer>) -> Result<()> {
+        instructions::marketplace::cancel_offer(ctx)
+    }
 }

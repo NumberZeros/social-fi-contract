@@ -499,8 +499,9 @@ pub struct AcceptOffer<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
     
+    /// CHECK: Buyer verified through offer.buyer - no signature needed (funds escrowed)
     #[account(mut)]
-    pub buyer: Signer<'info>,
+    pub buyer: AccountInfo<'info>,
     
     #[account(
         seeds = [b"platform_config"],
@@ -523,8 +524,6 @@ pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
         !offer.is_expired(clock.unix_timestamp),
         SocialFiError::OfferNotFound
     );
-    
-    let amount = offer.amount;
 
     // ===== EFFECTS (Update state BEFORE external calls) =====
     // Transfer NFT ownership in PDA
@@ -545,15 +544,13 @@ pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
         1, // Transfer 1 NFT
     )?;
     
-    // Transfer SOL payment from buyer to seller
-    let cpi_context = CpiContext::new(
-        ctx.accounts.system_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.buyer.to_account_info(),
-            to: ctx.accounts.seller.to_account_info(),
-        },
-    );
-    transfer(cpi_context, amount)?;
+    // ===== ESCROW: Withdraw SOL from offer PDA to seller =====
+    let offer_lamports = ctx.accounts.offer.to_account_info().lamports();
+    let rent_exempt = Rent::get()?.minimum_balance(ctx.accounts.offer.to_account_info().data_len());
+    let payment_amount = offer_lamports.checked_sub(rent_exempt).unwrap_or(0);
+    
+    **ctx.accounts.offer.to_account_info().try_borrow_mut_lamports()? -= payment_amount;
+    **ctx.accounts.seller.to_account_info().try_borrow_mut_lamports()? += payment_amount;
 
     emit!(OfferAccepted {
         seller: ctx.accounts.seller.key(),
@@ -563,5 +560,51 @@ pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
         timestamp: clock.unix_timestamp,
     });
 
+    Ok(())
+}
+
+// ==================== Cancel Offer ====================
+
+#[derive(Accounts)]
+pub struct CancelOffer<'info> {
+    #[account(
+        mut,
+        seeds = [OFFER_SEED, offer.listing.as_ref(), buyer.key().as_ref()],
+        bump = offer.bump,
+        constraint = offer.buyer == buyer.key() @ SocialFiError::Unauthorized,
+        close = buyer  // Rent refund goes to buyer
+    )]
+    pub offer: Account<'info, Offer>,
+    
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
+}
+
+pub fn cancel_offer(ctx: Context<CancelOffer>) -> Result<()> {
+    let offer = &ctx.accounts.offer;
+    let clock = Clock::get()?;
+    
+    // Allow cancellation even if expired (buyer gets refund either way)
+    let amount = offer.amount;
+    
+    // ===== ESCROW: Withdraw lamports from offer account =====
+    // Offer PDA is an Account (has data), not pure SystemAccount
+    // Must withdraw lamports directly, not via transfer()
+    let offer_lamports = ctx.accounts.offer.to_account_info().lamports();
+    let rent_exempt = Rent::get()?.minimum_balance(ctx.accounts.offer.to_account_info().data_len());
+    let refund_amount = offer_lamports.checked_sub(rent_exempt).unwrap_or(0);
+    
+    **ctx.accounts.offer.to_account_info().try_borrow_mut_lamports()? -= refund_amount;
+    **ctx.accounts.buyer.to_account_info().try_borrow_mut_lamports()? += refund_amount;
+    
+    emit!(OfferCancelled {
+        buyer: ctx.accounts.buyer.key(),
+        listing: offer.listing,
+        amount,
+        timestamp: clock.unix_timestamp,
+    });
+    
     Ok(())
 }

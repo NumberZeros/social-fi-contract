@@ -44,9 +44,11 @@ pub fn initialize_creator_pool(ctx: Context<InitializeCreatorPool>) -> Result<()
 #[derive(Accounts)]
 pub struct BuyShares<'info> {
     #[account(
-        mut,
+        init_if_needed,
+        payer = buyer,
+        space = CreatorPool::LEN,
         seeds = [CREATOR_POOL_SEED, creator.key().as_ref()],
-        bump = creator_pool.bump
+        bump
     )]
     pub creator_pool: Account<'info, CreatorPool>,
     
@@ -90,6 +92,18 @@ pub fn buy_shares(ctx: Context<BuyShares>, amount: u64, max_price_per_share: u64
 
     let creator_pool = &mut ctx.accounts.creator_pool;
     let share_holding = &mut ctx.accounts.share_holding;
+    
+    // ===== AUTO-INIT: Initialize creator pool if first time =====
+    if creator_pool.creator == Pubkey::default() {
+        let clock = Clock::get()?;
+        creator_pool.creator = ctx.accounts.creator.key();
+        creator_pool.supply = 0;
+        creator_pool.holders_count = 0;
+        creator_pool.base_price = BASE_PRICE;
+        creator_pool.total_volume = 0;
+        creator_pool.created_at = clock.unix_timestamp;
+        creator_pool.bump = ctx.bumps.creator_pool;
+    }
     
     // Calculate total cost
     let total_cost = creator_pool.calculate_buy_cost(amount)?;

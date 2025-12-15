@@ -12,7 +12,7 @@ social_fi_contract = "8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
