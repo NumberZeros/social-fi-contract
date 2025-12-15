@@ -139,8 +139,8 @@ pub mod social_fi_contract {
 
     // ==================== Marketplace ====================
     
-    pub fn mint_username(ctx: Context<MintUsername>, username: String) -> Result<()> {
-        instructions::marketplace::mint_username(ctx, username)
+    pub fn mint_username(ctx: Context<MintUsername>, username: String, metadata_uri: String) -> Result<()> {
+        instructions::marketplace::mint_username(ctx, username, metadata_uri)
     }
 
     pub fn list_username(ctx: Context<ListUsername>, price: u64) -> Result<()> {

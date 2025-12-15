@@ -148,7 +148,9 @@ pub struct ProposalExecuted {
 pub struct UsernameMinted {
     pub owner: Pubkey,
     pub username: String,
-    pub nft: Pubkey,
+    pub mint: Pubkey,           // SPL Token mint address (for Magic Eden)
+    pub nft: Pubkey,            // Our PDA account
+    pub metadata_uri: String,   // Arweave metadata URI
     pub timestamp: i64,
 }
 

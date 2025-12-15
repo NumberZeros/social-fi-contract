@@ -53,6 +53,9 @@ pub const MAX_TITLE_LENGTH: usize = 100;
 pub const MAX_DESCRIPTION_LENGTH: usize = 500;
 pub const MAX_NAME_LENGTH: usize = 50;
 
+// Marketplace Constants
+pub const MIN_OFFER_AMOUNT: u64 = 100_000; // 0.0001 SOL minimum offer
+
 // Time Constants
 pub const SECONDS_PER_DAY: i64 = 86400;
 pub const SECONDS_PER_YEAR: i64 = 31536000;

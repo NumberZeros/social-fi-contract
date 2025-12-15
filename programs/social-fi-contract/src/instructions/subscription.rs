@@ -122,15 +122,9 @@ pub fn subscribe(ctx: Context<Subscribe>) -> Result<()> {
     let subscription = &mut ctx.accounts.subscription;
     let clock = Clock::get()?;
 
-    // Transfer payment to creator
-    let cpi_context = CpiContext::new(
-        ctx.accounts.system_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.subscriber.to_account_info(),
-            to: ctx.accounts.creator.to_account_info(),
-        },
-    );
-    transfer(cpi_context, subscription_tier.price)?;
+    // ===== CHECKS =====
+    let price = subscription_tier.price;
+    let tier_id = subscription_tier.tier_id;
 
     // Calculate end date
     let duration_seconds = subscription_tier
@@ -143,10 +137,11 @@ pub fn subscribe(ctx: Context<Subscribe>) -> Result<()> {
         .checked_add(duration_seconds as i64)
         .ok_or(SocialFiError::ArithmeticOverflow)?;
 
+    // ===== EFFECTS (Update state BEFORE external calls) =====
     // Initialize subscription
     subscription.subscriber = ctx.accounts.subscriber.key();
     subscription.creator = ctx.accounts.creator.key();
-    subscription.tier_id = subscription_tier.tier_id;
+    subscription.tier_id = tier_id;
     subscription.start_date = clock.unix_timestamp;
     subscription.end_date = end_date;
     subscription.status = 0; // active
@@ -160,6 +155,17 @@ pub fn subscribe(ctx: Context<Subscribe>) -> Result<()> {
         .subscriber_count
         .checked_add(1)
         .ok_or(SocialFiError::ArithmeticOverflow)?;
+
+    // ===== INTERACTIONS (External calls LAST) =====
+    // Transfer payment to creator
+    let cpi_context = CpiContext::new(
+        ctx.accounts.system_program.to_account_info(),
+        Transfer {
+            from: ctx.accounts.subscriber.to_account_info(),
+            to: ctx.accounts.creator.to_account_info(),
+        },
+    );
+    transfer(cpi_context, price)?;
 
     emit!(UserSubscribed {
         subscriber: ctx.accounts.subscriber.key(),

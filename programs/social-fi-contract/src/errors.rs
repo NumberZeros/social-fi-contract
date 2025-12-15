@@ -107,6 +107,9 @@ pub enum SocialFiError {
     #[msg("Not the owner of this username NFT")]
     NotUsernameOwner,
     
+    #[msg("Metadata URI too long (max 200 characters)")]
+    MetadataUriTooLong,
+    
     #[msg("Username listing not found")]
     ListingNotFound,
     

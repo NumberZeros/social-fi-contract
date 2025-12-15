@@ -1,5 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer, Transfer};
+use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::metadata::Metadata;
 use crate::state::*;
 use crate::errors::*;
 use crate::events::*;
@@ -8,7 +11,7 @@ use crate::constants::*;
 // ==================== Mint Username ====================
 
 #[derive(Accounts)]
-#[instruction(username: String)]
+#[instruction(username: String, metadata_uri: String)]
 pub struct MintUsername<'info> {
     #[account(
         init,
@@ -18,6 +21,35 @@ pub struct MintUsername<'info> {
         bump
     )]
     pub username_nft: Account<'info, UsernameNFT>,
+    
+    /// SPL Token mint for the NFT
+    #[account(
+        init,
+        payer = owner,
+        mint::decimals = 0,
+        mint::authority = username_nft,
+        mint::freeze_authority = username_nft,
+    )]
+    pub mint: Account<'info, Mint>,
+    
+    /// Owner's associated token account to receive the NFT
+    #[account(
+        init_if_needed,
+        payer = owner,
+        associated_token::mint = mint,
+        associated_token::authority = owner,
+    )]
+    pub token_account: Account<'info, TokenAccount>,
+    
+    /// Metaplex metadata account
+    /// CHECK: Created via CPI to Metaplex Token Metadata program
+    #[account(mut)]
+    pub metadata: UncheckedAccount<'info>,
+    
+    /// Metaplex master edition account
+    /// CHECK: Created via CPI to Metaplex Token Metadata program
+    #[account(mut)]
+    pub master_edition: UncheckedAccount<'info>,
     
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -30,31 +62,123 @@ pub struct MintUsername<'info> {
     pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub token_metadata_program: Program<'info, Metadata>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn mint_username(ctx: Context<MintUsername>, username: String) -> Result<()> {
+pub fn mint_username(ctx: Context<MintUsername>, username: String, metadata_uri: String) -> Result<()> {
     require!(
         username.len() <= MAX_USERNAME_LENGTH,
         SocialFiError::UsernameTooLong
     );
     require!(
-        username.chars().all(|c| c.is_alphanumeric() || c == '_'),
+        username.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.'),
         SocialFiError::InvalidUsername
+    );
+    require!(
+        metadata_uri.len() <= 200,
+        SocialFiError::MetadataUriTooLong
     );
 
     let username_nft = &mut ctx.accounts.username_nft;
     let clock = Clock::get()?;
+    let bump = ctx.bumps.username_nft;
 
+    // Store NFT data
     username_nft.owner = ctx.accounts.owner.key();
     username_nft.username = username.clone();
+    username_nft.mint = ctx.accounts.mint.key();
+    username_nft.metadata_uri = metadata_uri.clone();
     username_nft.verified = false;
     username_nft.minted_at = clock.unix_timestamp;
-    username_nft.bump = ctx.bumps.username_nft;
+    username_nft.bump = bump;
+
+    // Mint 1 NFT token to owner's account
+    let seeds = &[
+        USERNAME_NFT_SEED,
+        username.as_bytes(),
+        &[bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
+
+    anchor_spl::token::mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token::MintTo {
+                mint: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.token_account.to_account_info(),
+                authority: ctx.accounts.username_nft.to_account_info(),
+            },
+            signer_seeds,
+        ),
+        1, // Mint exactly 1 NFT
+    )?;
+
+    // Create Metaplex metadata account
+    let creator = vec![
+        mpl_token_metadata::types::Creator {
+            address: ctx.accounts.platform_config.key(),
+            verified: false, // Platform can verify later if needed
+            share: 100, // 100% royalty goes to platform
+        },
+    ];
+
+    anchor_spl::metadata::create_metadata_accounts_v3(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_metadata_program.to_account_info(),
+            anchor_spl::metadata::CreateMetadataAccountsV3 {
+                metadata: ctx.accounts.metadata.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                mint_authority: ctx.accounts.username_nft.to_account_info(),
+                payer: ctx.accounts.owner.to_account_info(),
+                update_authority: ctx.accounts.username_nft.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                rent: ctx.accounts.rent.to_account_info(),
+            },
+            signer_seeds,
+        ),
+        mpl_token_metadata::types::DataV2 {
+            name: format!("@{}", username),
+            symbol: String::from("USRNM"),
+            uri: metadata_uri.clone(),
+            seller_fee_basis_points: 500, // 5% royalty
+            creators: Some(creator),
+            collection: None,
+            uses: None,
+        },
+        true,  // is_mutable
+        true,  // update_authority_is_signer
+        None,  // collection_details
+    )?;
+
+    // Create master edition (makes it a non-fungible token)
+    anchor_spl::metadata::create_master_edition_v3(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_metadata_program.to_account_info(),
+            anchor_spl::metadata::CreateMasterEditionV3 {
+                edition: ctx.accounts.master_edition.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                update_authority: ctx.accounts.username_nft.to_account_info(),
+                mint_authority: ctx.accounts.username_nft.to_account_info(),
+                payer: ctx.accounts.owner.to_account_info(),
+                metadata: ctx.accounts.metadata.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                rent: ctx.accounts.rent.to_account_info(),
+            },
+            signer_seeds,
+        ),
+        Some(0), // max_supply = 0 means unique 1/1 NFT
+    )?;
 
     emit!(UsernameMinted {
         owner: ctx.accounts.owner.key(),
         username,
+        mint: ctx.accounts.mint.key(),
         nft: ctx.accounts.username_nft.key(),
+        metadata_uri,
         timestamp: clock.unix_timestamp,
     });
 
@@ -71,6 +195,14 @@ pub struct ListUsername<'info> {
         constraint = username_nft.owner == seller.key() @ SocialFiError::NotUsernameOwner
     )]
     pub username_nft: Account<'info, UsernameNFT>,
+    
+    /// Seller's token account - must hold the NFT to list
+    #[account(
+        constraint = seller_token_account.mint == username_nft.mint @ SocialFiError::InvalidListingPrice,
+        constraint = seller_token_account.owner == seller.key() @ SocialFiError::NotUsernameOwner,
+        constraint = seller_token_account.amount == 1 @ SocialFiError::InsufficientShares,
+    )]
+    pub seller_token_account: Account<'info, TokenAccount>,
     
     #[account(
         init,
@@ -92,6 +224,7 @@ pub struct ListUsername<'info> {
     pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
 }
 
 pub fn list_username(ctx: Context<ListUsername>, price: u64) -> Result<()> {
@@ -147,6 +280,27 @@ pub struct BuyListing<'info> {
     )]
     pub listing: Account<'info, Listing>,
     
+    /// SPL Token mint account for the NFT
+    pub mint: Account<'info, Mint>,
+    
+    /// Seller's token account holding the NFT
+    #[account(
+        mut,
+        constraint = seller_token_account.mint == mint.key() @ SocialFiError::InvalidListingPrice,
+        constraint = seller_token_account.owner == listing.seller @ SocialFiError::NotUsernameOwner,
+        constraint = seller_token_account.amount == 1 @ SocialFiError::InsufficientShares,
+    )]
+    pub seller_token_account: Account<'info, TokenAccount>,
+    
+    /// Buyer's token account to receive the NFT
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = mint,
+        associated_token::authority = buyer,
+    )]
+    pub buyer_token_account: Account<'info, TokenAccount>,
+    
     #[account(mut)]
     pub buyer: Signer<'info>,
     
@@ -162,6 +316,8 @@ pub struct BuyListing<'info> {
     pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 pub fn buy_listing(ctx: Context<BuyListing>) -> Result<()> {
@@ -171,13 +327,36 @@ pub fn buy_listing(ctx: Context<BuyListing>) -> Result<()> {
     let seller_key = listing.seller;
     let username = listing.username.clone();
     
+    let clock = Clock::get()?;
+    
+    // Check listing hasn't expired
+    if let Some(expires_at) = listing.expires_at {
+        require!(
+            clock.unix_timestamp < expires_at,
+            SocialFiError::ListingNotFound
+        );
+    }
+    
     // ===== EFFECTS (Update state BEFORE external calls) =====
-    // Transfer NFT ownership
+    // Transfer NFT ownership in PDA
     let username_nft = &mut ctx.accounts.username_nft;
     username_nft.owner = ctx.accounts.buyer.key();
 
     // ===== INTERACTIONS (External calls LAST) =====
-    // Transfer payment to seller
+    // Transfer SPL token from seller to buyer
+    anchor_spl::token::transfer(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token::Transfer {
+                from: ctx.accounts.seller_token_account.to_account_info(),
+                to: ctx.accounts.buyer_token_account.to_account_info(),
+                authority: ctx.accounts.seller.to_account_info(),
+            },
+        ),
+        1, // Transfer 1 NFT
+    )?;
+    
+    // Transfer SOL payment to seller
     let cpi_context = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),
         Transfer {
@@ -187,7 +366,6 @@ pub fn buy_listing(ctx: Context<BuyListing>) -> Result<()> {
     );
     transfer(cpi_context, price)?;
 
-    let clock = Clock::get()?;
     emit!(UsernameSold {
         seller: seller_key,
         buyer: ctx.accounts.buyer.key(),
@@ -239,6 +417,7 @@ pub struct MakeOffer<'info> {
 
 pub fn make_offer(ctx: Context<MakeOffer>, amount: u64) -> Result<()> {
     require!(amount > 0, SocialFiError::InvalidOfferAmount);
+    require!(amount >= MIN_OFFER_AMOUNT, SocialFiError::InvalidOfferAmount);
 
     let offer = &mut ctx.accounts.offer;
     let clock = Clock::get()?;
@@ -296,6 +475,27 @@ pub struct AcceptOffer<'info> {
     )]
     pub offer: Account<'info, Offer>,
     
+    /// SPL Token mint account for the NFT
+    pub mint: Account<'info, Mint>,
+    
+    /// Seller's token account holding the NFT
+    #[account(
+        mut,
+        constraint = seller_token_account.mint == mint.key() @ SocialFiError::InvalidListingPrice,
+        constraint = seller_token_account.owner == seller.key() @ SocialFiError::NotUsernameOwner,
+        constraint = seller_token_account.amount == 1 @ SocialFiError::InsufficientShares,
+    )]
+    pub seller_token_account: Account<'info, TokenAccount>,
+    
+    /// Buyer's token account to receive the NFT
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = mint,
+        associated_token::authority = buyer,
+    )]
+    pub buyer_token_account: Account<'info, TokenAccount>,
+    
     #[account(mut)]
     pub seller: Signer<'info>,
     
@@ -310,6 +510,8 @@ pub struct AcceptOffer<'info> {
     pub platform_config: Account<'info, PlatformConfig>,
     
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
@@ -325,12 +527,25 @@ pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
     let amount = offer.amount;
 
     // ===== EFFECTS (Update state BEFORE external calls) =====
-    // Transfer NFT ownership
+    // Transfer NFT ownership in PDA
     let username_nft = &mut ctx.accounts.username_nft;
     username_nft.owner = ctx.accounts.buyer.key();
 
     // ===== INTERACTIONS (External calls LAST) =====
-    // Transfer payment from buyer to seller
+    // Transfer SPL token from seller to buyer
+    anchor_spl::token::transfer(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token::Transfer {
+                from: ctx.accounts.seller_token_account.to_account_info(),
+                to: ctx.accounts.buyer_token_account.to_account_info(),
+                authority: ctx.accounts.seller.to_account_info(),
+            },
+        ),
+        1, // Transfer 1 NFT
+    )?;
+    
+    // Transfer SOL payment from buyer to seller
     let cpi_context = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),
         Transfer {

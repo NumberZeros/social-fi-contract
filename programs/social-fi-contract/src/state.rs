@@ -378,13 +378,15 @@ impl PlatformConfig {
 pub struct UsernameNFT {
     pub owner: Pubkey,              // 32
     pub username: String,           // 4 + 20 = 24
+    pub mint: Pubkey,               // 32 - Metaplex SPL Token mint
+    pub metadata_uri: String,       // 4 + 200 = 204 - Arweave URI
     pub verified: bool,             // 1
     pub minted_at: i64,             // 8
     pub bump: u8,                   // 1
 }
 
 impl UsernameNFT {
-    pub const LEN: usize = 8 + 32 + 24 + 1 + 8 + 1;
+    pub const LEN: usize = 8 + 32 + 24 + 32 + 204 + 1 + 8 + 1; // 310 bytes
 }
 
 #[account]

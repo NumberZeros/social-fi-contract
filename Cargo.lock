@@ -1400,6 +1400,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "bs58",
+ "mpl-token-metadata",
 ]
 
 [[package]]

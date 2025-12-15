@@ -133,11 +133,33 @@ pub fn join_group(ctx: Context<JoinGroup>) -> Result<()> {
     let group = &ctx.accounts.group;
     let clock = Clock::get()?;
 
+    // ===== CHECKS =====
+    let entry_requirement = group.entry_requirement;
+    let entry_price = group.entry_price;
+
+    // ===== EFFECTS (Update state BEFORE external calls) =====
+    // Initialize member
+    let group_member = &mut ctx.accounts.group_member;
+    group_member.group = ctx.accounts.group.key();
+    group_member.wallet = ctx.accounts.member.key();
+    group_member.role = 3; // member
+    group_member.joined_at = clock.unix_timestamp;
+    group_member.banned = false;
+    group_member.bump = ctx.bumps.group_member;
+
+    // Update member count
+    let group = &mut ctx.accounts.group;
+    group.member_count = group
+        .member_count
+        .checked_add(1)
+        .ok_or(SocialFiError::ArithmeticOverflow)?;
+
+    // ===== INTERACTIONS (External calls LAST) =====
     // Handle entry requirement
-    match group.entry_requirement {
+    match entry_requirement {
         1 => {
             // Pay SOL
-            if let Some(price) = group.entry_price {
+            if let Some(price) = entry_price {
                 let cpi_context = CpiContext::new(
                     ctx.accounts.system_program.to_account_info(),
                     Transfer {
@@ -155,22 +177,6 @@ pub fn join_group(ctx: Context<JoinGroup>) -> Result<()> {
         }
         _ => {} // free entry
     }
-
-    // Initialize member
-    let group_member = &mut ctx.accounts.group_member;
-    group_member.group = ctx.accounts.group.key();
-    group_member.wallet = ctx.accounts.member.key();
-    group_member.role = 3; // member
-    group_member.joined_at = clock.unix_timestamp;
-    group_member.banned = false;
-    group_member.bump = ctx.bumps.group_member;
-
-    // Update member count
-    let group = &mut ctx.accounts.group;
-    group.member_count = group
-        .member_count
-        .checked_add(1)
-        .ok_or(SocialFiError::ArithmeticOverflow)?;
 
     emit!(MemberJoined {
         group: ctx.accounts.group.key(),
