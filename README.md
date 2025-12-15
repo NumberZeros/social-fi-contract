@@ -59,7 +59,7 @@ await program.methods
 
 ```bash
 # Prerequisites: Rust, Solana CLI v1.18+, Anchor v0.32.1, Node.js v16+
-git clone <your-repo>
+git clone https://github.com/NumberZeros/social-fi-contract.git
 cd social-fi-contract
 make install
 ```
@@ -201,9 +201,11 @@ ISC License - see [LICENSE](./LICENSE) file.
 
 ## Support
 
-- 🐛 **Bug reports:** [GitHub Issues](https://github.com/your-org/social-fi-contract/issues)
-- 💬 **Questions:** [GitHub Discussions](https://github.com/your-org/social-fi-contract/discussions)
+- 🌐 **Live Demo:** [pulse.thosoft.xyz](https://pulse.thosoft.xyz)
+- 🐛 **Bug reports:** [GitHub Issues](https://github.com/NumberZeros/social-fi-contract/issues)
+- 💬 **Questions:** [GitHub Discussions](https://github.com/NumberZeros/social-fi-contract/discussions)
 - 📖 **Docs:** [Documentation](./docs/)
+- 📧 **Email:** tho.nguyen.soft@gmail.com
 
 ---
 
