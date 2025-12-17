@@ -162,4 +162,14 @@ pub mod social_fi_contract {
     pub fn cancel_offer(ctx: Context<CancelOffer>) -> Result<()> {
         instructions::marketplace::cancel_offer(ctx)
     }
+
+    pub fn cancel_listing(ctx: Context<CancelListing>) -> Result<()> {
+        instructions::marketplace::cancel_listing(ctx)
+    }
+
+    // ==================== Posts ====================
+
+    pub fn create_post(ctx: Context<CreatePost>, title: String, uri: String) -> Result<()> {
+        instructions::post::create_post(ctx, title, uri)
+    }
 }

@@ -608,3 +608,43 @@ pub fn cancel_offer(ctx: Context<CancelOffer>) -> Result<()> {
     
     Ok(())
 }
+
+// ==================== Cancel Listing ====================
+
+#[derive(Accounts)]
+pub struct CancelListing<'info> {
+    #[account(
+        mut,
+        seeds = [USERNAME_NFT_SEED, username_nft.username.as_bytes()],
+        bump = username_nft.bump,
+        constraint = username_nft.owner == seller.key() @ SocialFiError::NotUsernameOwner
+    )]
+    pub username_nft: Account<'info, UsernameNFT>,
+
+    #[account(
+        mut,
+        seeds = [LISTING_SEED, username_nft.key().as_ref()],
+        bump = listing.bump,
+        constraint = listing.seller == seller.key() @ SocialFiError::NotUsernameOwner,
+        close = seller
+    )]
+    pub listing: Account<'info, Listing>,
+
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+pub fn cancel_listing(ctx: Context<CancelListing>) -> Result<()> {
+    let clock = Clock::get()?;
+
+    emit!(ListingCancelled {
+        seller: ctx.accounts.seller.key(),
+        username: ctx.accounts.listing.username.clone(),
+        listing: ctx.accounts.listing.key(),
+        timestamp: clock.unix_timestamp,
+    });
+
+    Ok(())
+}
