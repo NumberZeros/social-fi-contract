@@ -198,3 +198,20 @@ pub struct OfferCancelled {
     pub amount: u64,
     pub timestamp: i64,
 }
+
+#[event]
+pub struct ListingCancelled {
+    pub seller: Pubkey,
+    pub username: String,
+    pub listing: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct PostMinted {
+    pub author: Pubkey,
+    pub uri: String,
+    pub mint: Pubkey,
+    pub post: Pubkey,
+    pub timestamp: i64,
+}

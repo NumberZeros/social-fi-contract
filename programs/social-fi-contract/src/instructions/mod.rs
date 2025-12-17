@@ -5,6 +5,7 @@ pub mod subscription;
 pub mod group;
 pub mod governance;
 pub mod marketplace;
+pub mod post;
 
 pub use platform::*;
 pub use user::*;
@@ -13,3 +14,4 @@ pub use subscription::*;
 pub use group::*;
 pub use governance::*;
 pub use marketplace::*;
+pub use post::*;

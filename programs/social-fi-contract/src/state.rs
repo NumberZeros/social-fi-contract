@@ -421,3 +421,18 @@ impl Offer {
         current_time >= self.expires_at
     }
 }
+
+// ==================== Posts ====================
+
+#[account]
+pub struct Post {
+    pub author: Pubkey,             // 32
+    pub uri: String,                // 4 + 200 = 204
+    pub mint: Pubkey,               // 32 - SPL Token mint
+    pub created_at: i64,            // 8
+    pub bump: u8,                   // 1
+}
+
+impl Post {
+    pub const LEN: usize = 8 + 32 + 204 + 32 + 8 + 1;
+}

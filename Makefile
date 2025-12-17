@@ -53,6 +53,10 @@ help: ## Show this help message
 	@echo "  $(GREEN)make program-id$(NC)      Show program ID"
 	@echo "  $(GREEN)make version$(NC)         Show version info"
 	@echo ""
+	@echo "$(YELLOW)NFT Infrastructure:$(NC)"
+	@echo "  $(GREEN)make create-collection$(NC)        Create collection NFT (run once)"
+	@echo "  $(GREEN)make verify-nft MINT=<mint>$(NC)  Link old NFT to collection"
+	@echo ""
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
 
 #═══════════════════════════════════════════════════════════════════════════════
@@ -284,3 +288,22 @@ pre-commit: format lint ## Run pre-commit checks
 
 pre-deploy: clean build test audit ## Run pre-deployment checks
 	@echo "$(GREEN)✓ Ready for deployment!$(NC)"
+
+#═══════════════════════════════════════════════════════════════════════════════
+# NFT INFRASTRUCTURE
+#═══════════════════════════════════════════════════════════════════════════════
+
+create-collection: ## Create collection NFT (one-time setup)
+	@echo "$(BLUE)Creating collection NFT...$(NC)"
+	@command -v tsx >/dev/null 2>&1 || pnpm add -D tsx
+	pnpm tsx scripts/create-collection.ts
+	@echo "$(GREEN)✓ Collection created! Update frontend .env with collection mint$(NC)"
+
+verify-nft: ## Verify old NFT into collection (make verify-nft MINT=<mint_address>)
+	@if [ -z "$(MINT)" ]; then \
+		echo "$(RED)❌ Error: MINT parameter required$(NC)"; \
+		echo "Usage: make verify-nft MINT=<nft_mint_address>"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Verifying NFT into collection...$(NC)"
+	pnpm tsx scripts/verify-nft-collection.ts $(MINT)
