@@ -157,4 +157,13 @@ pub enum SocialFiError {
     
     #[msg("Insufficient liquidity in pool")]
     InsufficientLiquidity,
+    
+    #[msg("Post already has an NFT minted")]
+    PostAlreadyMinted,
+    
+    #[msg("Comment content too long (max 280 characters)")]
+    CommentTooLong,
+    
+    #[msg("Content cannot be empty")]
+    EmptyContent,
 }

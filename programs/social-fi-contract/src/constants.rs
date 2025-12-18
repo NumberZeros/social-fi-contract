@@ -13,6 +13,10 @@ pub const USERNAME_NFT_SEED: &[u8] = b"username_nft";
 pub const LISTING_SEED: &[u8] = b"listing";
 pub const OFFER_SEED: &[u8] = b"offer";
 pub const POST_SEED: &[u8] = b"post";
+pub const FOLLOW_SEED: &[u8] = b"follow";
+pub const LIKE_SEED: &[u8] = b"like";
+pub const REPOST_SEED: &[u8] = b"repost";
+pub const COMMENT_SEED: &[u8] = b"comment";
 
 // Bonding Curve Constants
 pub const BASE_PRICE: u64 = 10_000_000; // 0.01 SOL in lamports

@@ -7,24 +7,62 @@ use crate::errors::*;
 use crate::events::*;
 use crate::constants::*;
 
+// ==================== Create Post (PDA Only) ====================
+
 #[derive(Accounts)]
-#[instruction(title: String, uri: String)]
+#[instruction(uri: String)]
 pub struct CreatePost<'info> {
     #[account(
         init,
         payer = author,
         space = Post::LEN,
-        seeds = [POST_SEED, author.key().as_ref(), uri.as_bytes()], // Use URI as unique seed component? Or random/timestamp?
-        // Using URI as seed might be long. Maybe use a UUID passed from FE?
-        // Let's stick to using a unique ID arg if possible, or just the URI if unique.
-        // For simplicity and to match MintUsername pattern, we'll use a derived seed.
-        // Wait, URI can be long. Let's use a combination or rely on a passed ID.
-        // Detailed Design: Let's assume URI is unique enough or adds randomness.
-        // Actually, using `uri` (limited length) as seed works if we embrace it.
-        // But `username` was short. `uri` is 200 chars.
-        // Alternative: Use a counter in UserProfile? Too complex for now.
-        // Let's use the `uri` as the seed, assuming it's an IPFS hash which is unique.
+        seeds = [POST_SEED, author.key().as_ref(), uri.as_bytes()],
         bump
+    )]
+    pub post: Account<'info, Post>,
+    
+    #[account(mut)]
+    pub author: Signer<'info>,
+    
+    #[account(
+        seeds = [b"platform_config"],
+        bump = platform_config.bump,
+        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
+    )]
+    pub platform_config: Account<'info, PlatformConfig>,
+    
+    pub system_program: Program<'info, System>,
+}
+
+pub fn create_post(ctx: Context<CreatePost>, uri: String) -> Result<()> {
+    require!(
+        uri.len() <= 200,
+        SocialFiError::MetadataUriTooLong
+    );
+
+    let post = &mut ctx.accounts.post;
+    let clock = Clock::get()?;
+    let bump = ctx.bumps.post;
+
+    post.author = ctx.accounts.author.key();
+    post.uri = uri;
+    post.mint = None;
+    post.created_at = clock.unix_timestamp;
+    post.bump = bump;
+
+    msg!("Post created: {}", post.key());
+    Ok(())
+}
+
+// ==================== Mint Post (NFT) ====================
+
+#[derive(Accounts)]
+#[instruction(title: String)]
+pub struct MintPost<'info> {
+    #[account(
+        mut,
+        has_one = author,
+        constraint = post.mint.is_none() @ SocialFiError::PostAlreadyMinted
     )]
     pub post: Account<'info, Post>,
     
@@ -33,7 +71,7 @@ pub struct CreatePost<'info> {
         init,
         payer = author,
         mint::decimals = 0,
-        mint::authority = post,
+        mint::authority = post, // Post PDA is the authority
         mint::freeze_authority = post,
     )]
     pub mint: Account<'info, Mint>,
@@ -60,13 +98,6 @@ pub struct CreatePost<'info> {
     #[account(mut)]
     pub author: Signer<'info>,
     
-    #[account(
-        seeds = [b"platform_config"],
-        bump = platform_config.bump,
-        constraint = !platform_config.paused @ crate::errors::SocialFiError::ContractPaused
-    )]
-    pub platform_config: Account<'info, PlatformConfig>,
-    
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -74,113 +105,112 @@ pub struct CreatePost<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn create_post(ctx: Context<CreatePost>, title: String, uri: String) -> Result<()> {
+pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
     require!(
-        uri.len() <= 200,
-        SocialFiError::MetadataUriTooLong
+        title.len() <= MAX_TITLE_LENGTH,
+        SocialFiError::UsernameTooLong // Reusing error for now
     );
-    // Title length check if needed
-    require!(
-        title.len() <= MAX_TITLE_LENGTH, // Using existing constant or new one
-        SocialFiError::UsernameTooLong // Reusing error or map new one? Let's use generic or add one.
-        // crate::errors::SocialFiError does not have TitleTooLong.
-        // Using MetadataUriTooLong as proxy or just length check.
-    );
+
+    let post_account_info = ctx.accounts.post.to_account_info();
+    let mint_account_info = ctx.accounts.mint.to_account_info();
+    let token_account_info = ctx.accounts.token_account.to_account_info();
+    let metadata_account_info = ctx.accounts.metadata.to_account_info();
+    let master_edition_account_info = ctx.accounts.master_edition.to_account_info();
+    let author_account_info = ctx.accounts.author.to_account_info();
+    let system_program_info = ctx.accounts.system_program.to_account_info();
+    let rent_account_info = ctx.accounts.rent.to_account_info();
+    let token_program_info = ctx.accounts.token_program.to_account_info();
+    let token_metadata_program_info = ctx.accounts.token_metadata_program.to_account_info();
 
     let post = &mut ctx.accounts.post;
     let clock = Clock::get()?;
-    let bump = ctx.bumps.post;
-
-    // Store Post data
-    post.author = ctx.accounts.author.key();
-    post.uri = uri.clone();
-    post.mint = ctx.accounts.mint.key();
-    post.created_at = clock.unix_timestamp;
-    post.bump = bump;
+    
+    // Update post with mint address
+    post.mint = Some(ctx.accounts.mint.key());
 
     // Mint 1 NFT token to author's account
-    // Seeds for signing
+    // Seeds for signing (re-derive seeds)
     let seeds = &[
         POST_SEED,
-        ctx.accounts.author.key.as_ref(),
-        uri.as_bytes(),
-        &[bump],
+        post.author.as_ref(), // Use the stored author key
+        post.uri.as_bytes(),  // Use the stored URI
+        &[post.bump],
     ];
     let signer_seeds = &[&seeds[..]];
 
     anchor_spl::token::mint_to(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            token_program_info.clone(),
             anchor_spl::token::MintTo {
-                mint: ctx.accounts.mint.to_account_info(),
-                to: ctx.accounts.token_account.to_account_info(),
-                authority: ctx.accounts.post.to_account_info(),
+                mint: mint_account_info.clone(),
+                to: token_account_info,
+                authority: post_account_info.clone(),
             },
             signer_seeds,
         ),
-        1, // Mint exactly 1 NFT
+        1,
     )?;
 
     // Create Metaplex metadata account
     let creator = vec![
         mpl_token_metadata::types::Creator {
             address: ctx.accounts.author.key(),
-            verified: true, // Author is signer
+            verified: true,
             share: 100,
         },
     ];
 
     anchor_spl::metadata::create_metadata_accounts_v3(
         CpiContext::new_with_signer(
-            ctx.accounts.token_metadata_program.to_account_info(),
+            token_metadata_program_info.clone(),
             anchor_spl::metadata::CreateMetadataAccountsV3 {
-                metadata: ctx.accounts.metadata.to_account_info(),
-                mint: ctx.accounts.mint.to_account_info(),
-                mint_authority: ctx.accounts.post.to_account_info(),
-                payer: ctx.accounts.author.to_account_info(),
-                update_authority: ctx.accounts.post.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
+                metadata: metadata_account_info.clone(),
+                mint: mint_account_info.clone(),
+                mint_authority: post_account_info.clone(),
+                payer: author_account_info.clone(),
+                update_authority: post_account_info.clone(),
+                system_program: system_program_info.clone(),
+                rent: rent_account_info.clone(),
             },
             signer_seeds,
         ),
         mpl_token_metadata::types::DataV2 {
             name: title,
             symbol: String::from("POST"),
-            uri: uri.clone(),
+            uri: post.uri.clone(),
             seller_fee_basis_points: 0, 
             creators: Some(creator),
             collection: None,
             uses: None,
         },
-        true,  // is_mutable
-        true,  // update_authority_is_signer
-        None,  // collection_details
+        true,
+        true,
+        None,
     )?;
 
-    // Create master edition (makes it a non-fungible token)
+    // Create master edition
     anchor_spl::metadata::create_master_edition_v3(
         CpiContext::new_with_signer(
-            ctx.accounts.token_metadata_program.to_account_info(),
+            token_metadata_program_info,
             anchor_spl::metadata::CreateMasterEditionV3 {
-                edition: ctx.accounts.master_edition.to_account_info(),
-                mint: ctx.accounts.mint.to_account_info(),
-                update_authority: ctx.accounts.post.to_account_info(),
-                mint_authority: ctx.accounts.post.to_account_info(),
-                payer: ctx.accounts.author.to_account_info(),
-                metadata: ctx.accounts.metadata.to_account_info(),
-                token_program: ctx.accounts.token_program.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
+                edition: master_edition_account_info,
+                mint: mint_account_info,
+                update_authority: post_account_info.clone(),
+                mint_authority: post_account_info,
+                payer: author_account_info,
+                metadata: metadata_account_info,
+                token_program: token_program_info,
+                system_program: system_program_info,
+                rent: rent_account_info,
             },
             signer_seeds,
         ),
-        Some(0), // max_supply = 0 means unique 1/1 NFT
+        Some(0),
     )?;
 
     emit!(PostMinted {
         author: ctx.accounts.author.key(),
-        uri: uri.clone(),
+        uri: post.uri.clone(),
         mint: ctx.accounts.mint.key(),
         post: ctx.accounts.post.key(),
         timestamp: clock.unix_timestamp,

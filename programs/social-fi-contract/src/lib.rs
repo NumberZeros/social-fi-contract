@@ -169,7 +169,37 @@ pub mod social_fi_contract {
 
     // ==================== Posts ====================
 
-    pub fn create_post(ctx: Context<CreatePost>, title: String, uri: String) -> Result<()> {
-        instructions::post::create_post(ctx, title, uri)
+    pub fn create_post(ctx: Context<CreatePost>, uri: String) -> Result<()> {
+        instructions::post::create_post(ctx, uri)
+    }
+
+    pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
+        instructions::post::mint_post(ctx, title)
+    }
+
+    // ==================== Social Interactions ====================
+
+    pub fn follow_user(ctx: Context<FollowUser>) -> Result<()> {
+        instructions::social::follow_user(ctx)
+    }
+
+    pub fn unfollow_user(ctx: Context<UnfollowUser>) -> Result<()> {
+        instructions::social::unfollow_user(ctx)
+    }
+
+    pub fn like_post(ctx: Context<LikePost>) -> Result<()> {
+        instructions::social::like_post(ctx)
+    }
+
+    pub fn unlike_post(ctx: Context<UnlikePost>) -> Result<()> {
+        instructions::social::unlike_post(ctx)
+    }
+
+    pub fn create_repost(ctx: Context<CreateRepost>) -> Result<()> {
+        instructions::social::create_repost(ctx)
+    }
+
+    pub fn create_comment(ctx: Context<CreateComment>, nonce: u64, content: String) -> Result<()> {
+        instructions::social::create_comment(ctx, nonce, content)
     }
 }

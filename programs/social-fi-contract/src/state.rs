@@ -428,11 +428,62 @@ impl Offer {
 pub struct Post {
     pub author: Pubkey,             // 32
     pub uri: String,                // 4 + 200 = 204
-    pub mint: Pubkey,               // 32 - SPL Token mint
+    pub mint: Option<Pubkey>,       // 1 + 32 = 33
     pub created_at: i64,            // 8
     pub bump: u8,                   // 1
 }
 
 impl Post {
-    pub const LEN: usize = 8 + 32 + 204 + 32 + 8 + 1;
+    pub const LEN: usize = 8 + 32 + 204 + 33 + 8 + 1;
+}
+
+// ==================== Social Interactions ====================
+
+#[account]
+pub struct Follow {
+    pub follower: Pubkey,           // 32 - User who is following
+    pub following: Pubkey,          // 32 - User being followed
+    pub created_at: i64,            // 8
+    pub bump: u8,                   // 1
+}
+
+impl Follow {
+    pub const LEN: usize = 8 + 32 + 32 + 8 + 1;
+}
+
+#[account]
+pub struct Like {
+    pub user: Pubkey,               // 32 - User who liked
+    pub post: Pubkey,               // 32 - Post being liked
+    pub created_at: i64,            // 8
+    pub bump: u8,                   // 1
+}
+
+impl Like {
+    pub const LEN: usize = 8 + 32 + 32 + 8 + 1;
+}
+
+#[account]
+pub struct Repost {
+    pub user: Pubkey,               // 32 - User who reposted
+    pub original_post: Pubkey,      // 32 - Original post being reposted
+    pub created_at: i64,            // 8
+    pub bump: u8,                   // 1
+}
+
+impl Repost {
+    pub const LEN: usize = 8 + 32 + 32 + 8 + 1;
+}
+
+#[account]
+pub struct Comment {
+    pub author: Pubkey,             // 32 - Comment author
+    pub post: Pubkey,               // 32 - Post being commented on
+    pub content: String,            // 4 + 280 = 284 (tweet-length comments)
+    pub created_at: i64,            // 8
+    pub bump: u8,                   // 1
+}
+
+impl Comment {
+    pub const LEN: usize = 8 + 32 + 32 + 284 + 8 + 1;
 }
