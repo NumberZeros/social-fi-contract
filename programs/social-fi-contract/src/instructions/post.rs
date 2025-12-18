@@ -10,13 +10,15 @@ use crate::constants::*;
 // ==================== Create Post (PDA Only) ====================
 
 #[derive(Accounts)]
-#[instruction(uri: String)]
+#[instruction(nonce: String, uri: String)]
 pub struct CreatePost<'info> {
     #[account(
         init,
         payer = author,
         space = Post::LEN,
-        seeds = [POST_SEED, author.key().as_ref(), uri.as_bytes()],
+        // Use nonce for unique seed per post
+        // nonce should be compact string (max 16 chars)
+        seeds = [POST_SEED, author.key().as_ref(), nonce.as_bytes()],
         bump
     )]
     pub post: Account<'info, Post>,
@@ -34,10 +36,15 @@ pub struct CreatePost<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn create_post(ctx: Context<CreatePost>, uri: String) -> Result<()> {
+pub fn create_post(ctx: Context<CreatePost>, nonce: String, uri: String) -> Result<()> {
     require!(
         uri.len() <= 200,
         SocialFiError::MetadataUriTooLong
+    );
+    
+    require!(
+        nonce.len() <= 16,
+        SocialFiError::MetadataUriTooLong  // Reuse error for now
     );
 
     let post = &mut ctx.accounts.post;

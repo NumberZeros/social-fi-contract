@@ -169,8 +169,8 @@ pub mod social_fi_contract {
 
     // ==================== Posts ====================
 
-    pub fn create_post(ctx: Context<CreatePost>, uri: String) -> Result<()> {
-        instructions::post::create_post(ctx, uri)
+    pub fn create_post(ctx: Context<CreatePost>, nonce: String, uri: String) -> Result<()> {
+        instructions::post::create_post(ctx, nonce, uri)
     }
 
     pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
