@@ -5,47 +5,86 @@
 **A decentralized social network protocol on Solana with built-in creator economy and NFT marketplace**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Security Score](https://img.shields.io/badge/security-98%2F100-brightgreen)]()
-[![Anchor Version](https://img.shields.io/badge/anchor-0.32.1-blue)]()
-[![Solana](https://img.shields.io/badge/solana-1.18+-blue)]()
+[![Anchor](https://img.shields.io/badge/anchor-0.32.1-blue)]()
+[![Solana](https://img.shields.io/badge/solana-devnet-purple)]()
 [![License: ISC](https://img.shields.io/badge/license-ISC-blue)](./LICENSE)
 
-[Documentation](./docs) · [Report Bug](https://github.com/numberzeros/social-fi-contract/issues) · [Request Feature](https://github.com/numberzeros/social-fi-contract/issues)
+**Program ID:** `FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL`
+
+[Documentation](./docs) · [Frontend](../social-fi-fe) · [Migrations](./migrations)
 
 </div>
 
 ---
 
-## Overview
+## 📋 Overview
 
-Social-Fi Protocol is a decentralized social network built on Solana that empowers creators to monetize their content and community through programmable economic primitives. The protocol implements a creator shares system using bonding curves, NFT-based identity, subscription tiers, and decentralized governance.
+Social-Fi Protocol is a decentralized social network built on Solana that empowers creators to monetize their content and community. The protocol implements:
 
-### Core Features
+- **Post System**: On-chain posts with NFT minting capability
+- **Creator Shares**: Dynamic pricing through bonding curves
+- **Subscriptions**: Multi-tier recurring payments
+- **Community Groups**: Token-gated communities
+- **Governance**: Token-weighted voting with staking
+- **Direct Monetization**: Peer-to-peer tipping
 
-- **Creator Shares**: Dynamic pricing through bonding curves with automatic liquidity provision
-- **NFT Identity**: Metaplex-standard usernames tradable on major marketplaces (Magic Eden, OpenSea)
-- **Subscription System**: Multi-tier recurring payments with configurable durations
-- **Community Groups**: Permission-based communities with entry fees and role management
-- **Decentralized Governance**: Token-weighted voting with time-locked staking
-- **Direct Monetization**: Peer-to-peer tipping with zero platform fees
+## ✨ Core Features
 
-## Table of Contents
+### Post & Content
+- **Create Posts**: Store posts on-chain with metadata URI (content on IPFS)
+- **Mint Post NFTs**: Convert posts to NFTs with Metaplex Token Metadata
+  - Title max 32 characters (Metaplex limit)
+  - Metadata includes images, description, attributes
+  - Creator automatically set (unverified by default)
+- **Social Actions**: Like, comment, repost, tip posts
+- **Metadata Storage**: Content and images on Pinata IPFS
 
-- [Getting Started](#getting-started)
-- [Architecture](#architecture)
-- [Security](#security)
-- [Documentation](#documentation)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-- [License](#license)
+### Creator Economy
+- **Creator Shares**: Dynamic bonding curve pricing with automatic liquidity
+- **Subscriptions**: Bronze/Silver/Gold tiers with configurable durations
+- **Direct Tips**: Zero-fee peer-to-peer payments
+- **Revenue Tracking**: On-chain earnings and analytics
 
-## Getting Started
+### Community Features
+- **Groups**: Permission-based communities with entry requirements
+- **Roles**: Owner, Admin, Moderator, Member hierarchy
+- *🚀 Getting Started
 
 ### Prerequisites
 
-Ensure you have the following tools installed:
+- **Rust**: 1.75+
+- **Solana CLI**: 1.18+  
+- **Anchor Framework**: 0.32.1
+- **Node.js**: 18+
+- **pnpm**: 8+
 
+### Installation
+
+```bash
+# Clone repository
+git clone <repo-url>
+cd social-fi-contract
+
+# Install dependencies
+pnpm install
+
+# Build program
+anchor build
+
+# Run tests
+anchor test
+```
+
+### Configuration
+
+```toml
+# Anchor.toml
+[programs.devnet]
+social_fi_contract = "FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
 - **Rust**: 1.75 or higher
 - **Solana CLI**: 1.18 or higher  
 - **Anchor Framework**: 0.32.1
@@ -62,43 +101,61 @@ cd social-fi-contract
 pnpm install
 ```
 
-###Architecture
-
-### Program Structure
-
-The protocol is organized into modular instruction sets:
-
-```
-programs/social-fi-contract/src/
-├── lib.rs                 # Program entry point (28 public instructions)
-├── state.rs               # Account data structures
-├── errors.rs              # Custom error definitions
-├── events.rs              # Event log definitions
-├── constants.rs           # Protocol constants and configuration
-└── instructions/
-    ├── platform.rs        # Platform administration
-    ├── user.rs            # User profiles and direct payments
-    ├── shares.rs          # Creator shares and bonding curve
-    ├── subscription.rs    # Subscription management
-    ├── group.rs           # Community group operations
-    ├── governance.rs      # Proposal and voting system
-    └── marketplace.rs     # NFT marketplace (Metaplex integration)
-```
-
-See [Architecture Documentation](./docs/ARCHITECTURE.md) for detailed design overview.
-
-### Economic Primitiveatform configuration
-ts-node scripts/initialize-platform.ts
-```
-
 ## 📊 Architecture
 
 ### Program Structure
 
 ```
 programs/social-fi-contract/src/
-├── lib.rs                 # Entry point (28 instructions)
-├── state.rs               # Account structures (424 lines)
+├── lib.rs                 # Entry point (28 public instructions)
+├── state.rs               # Account structures (Post, Profile, etc.)
+├── errors.rs              # Custom error codes
+├── events.rs              # Event definitions
+├── constants.rs           # Program constants
+└── instructions/
+    ├── platform.rs        # Platform config
+    ├── post.rs            # Post operations & NFT minting
+    ├── user.rs            # Profiles, tips, follows
+    ├── shares.rs          # Creator shares bonding curve
+    ├── subscription.rs    # Subscription tiers
+    ├── group.rs           # Community groups
+    └── governance.rs      # Proposals & voting
+```
+
+### Post Account Structure
+
+```rust
+pub struct Post {
+    pub author: Pubkey,       // Post creator
+    pub uri: String,          // IPFS metadata URI (max 200 bytes)
+    pub mint: Option<Pubkey>, // NFT mint address if minted
+    pub nonce: String,        // PDA derivation nonce (20 bytes)
+    pub created_at: i64,      // Unix timestamp
+    pub bump: u8,             // PDA bump seed
+}
+```
+
+### Mint Post NFT Flow
+
+1. **Fetch post** from blockchain + verify author
+2. **Upload NFT metadata** to Pinata IPFS with images
+3. **Create Mint** account + Token account (ATA)
+4. **Create Metaplex metadata** (creator.verified = false)
+5. **Create master edition** (max supply = 1)
+6. **Update post.mint** field on-chain
+
+See [Architecture Documentation](./docs/ARCHITECTURE.md) for details.
+
+## 🔧 Deployment
+
+### Using Migrations
+
+```bash
+# Initialize platform config
+pnpm run migrate:init
+
+# Verify deployment  
+pnpm run migrate:verify
 ├── errors.rs              # Error definitions (161 lines)
 ├── events.rs              # Event emissions (191 lines)
 ├── constants.rs           # Configuration values (60 lines)
