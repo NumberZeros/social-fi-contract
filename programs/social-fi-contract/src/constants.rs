@@ -54,7 +54,7 @@ pub const APY_365_DAYS: u64 = 3000; // 30%
 
 // String Limits
 pub const MAX_USERNAME_LENGTH: usize = 20;
-pub const MAX_TITLE_LENGTH: usize = 100;
+pub const MAX_TITLE_LENGTH: usize = 32; // Metaplex NFT name limit
 pub const MAX_DESCRIPTION_LENGTH: usize = 500;
 pub const MAX_NAME_LENGTH: usize = 50;
 

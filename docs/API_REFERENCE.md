@@ -4,7 +4,7 @@
 
 The Social-Fi smart contract provides blockchain infrastructure for a decentralized social platform with creator monetization, governance, and marketplace features.
 
-**Program ID:** `8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP`
+**Program ID:** `FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL`
 
 ## Table of Contents
 
@@ -734,5 +734,5 @@ anchor deploy --provider.cluster devnet
 
 Verify deployment:
 ```bash
-solana program show 8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP
+solana program show FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL
 ```

@@ -436,7 +436,7 @@ This project is licensed under the ISC License - see the [LICENSE](./LICENSE) fi
 
 <div align="center">
 
-**Program ID (Devnet)**: `8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP`
+**Program ID (Devnet)**: `FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL`
 
 ⚠️ **This software is in active development. Use at your own risk.**
 
@@ -474,6 +474,6 @@ This project is licensed under the ISC License - see the [LICENSE](./LICENSE) fi
 
 ---
 
-**Program ID**: `8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP`
+**Program ID**: `FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL`
 
 **Made with ❤️ for Solana**

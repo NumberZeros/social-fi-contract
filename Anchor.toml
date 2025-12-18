@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-social_fi_contract = "8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP"
+social_fi_contract = "FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL"
 
 [registry]
 url = "https://api.apr.dev"

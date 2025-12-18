@@ -7,7 +7,7 @@
 
 ### Program Details
 
-- **Program ID:** `8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP`
+- **Program ID:** `FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL`
 - **IDL Account:** `AogVde71ib9bSs6Dnfgo1NHXMxtT9NB6NApzQ8uX6xEu`
 - **Upgrade Authority:** `HMj2bYhaCsyJvybwwJSiufTK9AqDmuLrwhQgy2wvWdfi`
 - **Deployed Slot:** 428225712
@@ -16,7 +16,7 @@
 
 ### Explorer Links
 
-- **Program:** https://explorer.solana.com/address/8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP?cluster=devnet
+- **Program:** https://explorer.solana.com/address/FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL?cluster=devnet
 - **IDL:** https://explorer.solana.com/address/AogVde71ib9bSs6Dnfgo1NHXMxtT9NB6NApzQ8uX6xEu?cluster=devnet
 
 ### How to Connect
@@ -32,7 +32,7 @@ const connection = new anchor.web3.Connection(
 );
 
 const programId = new anchor.web3.PublicKey(
-  "8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP"
+  "FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL"
 );
 
 const program = new Program<SocialFiContract>(idl, programId, provider);
@@ -45,10 +45,10 @@ const program = new Program<SocialFiContract>(idl, programId, provider);
 solana config set --url devnet
 
 # Check program info
-solana program show 8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP
+solana program show FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL
 
 # View logs
-solana logs 8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP
+solana logs FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL
 ```
 
 ### Next Steps

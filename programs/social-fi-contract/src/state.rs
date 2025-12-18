@@ -428,13 +428,14 @@ impl Offer {
 pub struct Post {
     pub author: Pubkey,             // 32
     pub uri: String,                // 4 + 200 = 204
+    pub nonce: String,              // 4 + 16 = 20 (store nonce for PDA re-derivation)
     pub mint: Option<Pubkey>,       // 1 + 32 = 33
     pub created_at: i64,            // 8
     pub bump: u8,                   // 1
 }
 
 impl Post {
-    pub const LEN: usize = 8 + 32 + 204 + 33 + 8 + 1;
+    pub const LEN: usize = 8 + 32 + 204 + 20 + 33 + 8 + 1;
 }
 
 // ==================== Social Interactions ====================

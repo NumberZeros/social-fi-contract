@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP");
+declare_id!("FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL");
 
 pub mod state;
 pub mod instructions;
@@ -173,8 +173,8 @@ pub mod social_fi_contract {
         instructions::post::create_post(ctx, nonce, uri)
     }
 
-    pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
-        instructions::post::mint_post(ctx, title)
+    pub fn mint_post(ctx: Context<MintPost>, title: String, nft_metadata_uri: String) -> Result<()> {
+        instructions::post::mint_post(ctx, title, nft_metadata_uri)
     }
 
     // ==================== Social Interactions ====================

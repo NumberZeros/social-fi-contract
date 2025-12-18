@@ -53,6 +53,7 @@ pub fn create_post(ctx: Context<CreatePost>, nonce: String, uri: String) -> Resu
 
     post.author = ctx.accounts.author.key();
     post.uri = uri;
+    post.nonce = nonce;
     post.mint = None;
     post.created_at = clock.unix_timestamp;
     post.bump = bump;
@@ -112,7 +113,7 @@ pub struct MintPost<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
+pub fn mint_post(ctx: Context<MintPost>, title: String, nft_metadata_uri: String) -> Result<()> {
     require!(
         title.len() <= MAX_TITLE_LENGTH,
         SocialFiError::UsernameTooLong // Reusing error for now
@@ -136,11 +137,11 @@ pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
     post.mint = Some(ctx.accounts.mint.key());
 
     // Mint 1 NFT token to author's account
-    // Seeds for signing (re-derive seeds)
+    // Seeds for signing (re-derive seeds using stored nonce)
     let seeds = &[
         POST_SEED,
-        post.author.as_ref(), // Use the stored author key
-        post.uri.as_bytes(),  // Use the stored URI
+        post.author.as_ref(),
+        post.nonce.as_bytes(),  // CRITICAL: Use stored nonce to match create_post seeds
         &[post.bump],
     ];
     let signer_seeds = &[&seeds[..]];
@@ -162,7 +163,7 @@ pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
     let creator = vec![
         mpl_token_metadata::types::Creator {
             address: ctx.accounts.author.key(),
-            verified: true,
+            verified: false, // Must be false - author can verify later by signing
             share: 100,
         },
     ];
@@ -184,7 +185,7 @@ pub fn mint_post(ctx: Context<MintPost>, title: String) -> Result<()> {
         mpl_token_metadata::types::DataV2 {
             name: title,
             symbol: String::from("POST"),
-            uri: post.uri.clone(),
+            uri: nft_metadata_uri,
             seller_fee_basis_points: 0, 
             creators: Some(creator),
             collection: None,

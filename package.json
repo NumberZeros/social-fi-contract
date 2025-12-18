@@ -10,7 +10,10 @@
     "dev": "anchor test --skip-deploy",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "idl": "anchor idl fetch 8dU8UsnavCaqmm4JTgMHCtjzcfcu4D4iKYW71MXE1mDP -o target/idl/social_fi_contract.json"
+    "idl": "anchor idl fetch FHHfGX8mYxagDmhsXgJUfLnx1rw2M138e3beCwWELdgL -o target/idl/social_fi_contract.json",
+    "migration:init": "ANCHOR_PROVIDER_URL=https://api.devnet.solana.com ANCHOR_WALLET=~/.config/solana/id.json ts-node migrations/initialize-platform.ts",
+    "migration:verify": "ANCHOR_PROVIDER_URL=https://api.devnet.solana.com ANCHOR_WALLET=~/.config/solana/id.json ts-node migrations/verify-deployment.ts",
+    "migration:deploy": "ts-node migrations/deploy.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",

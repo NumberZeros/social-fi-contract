@@ -205,11 +205,6 @@ upgrade-mainnet: build-release ## Upgrade program on mainnet (requires confirmat
 	anchor upgrade --provider.cluster mainnet-beta target/deploy/social_fi_contract.so --program-id $$(solana address -k target/deploy/social_fi_contract-keypair.json)
 	@echo "$(GREEN)✓ Program upgraded on mainnet$(NC)"
 
-verify-deployment: ## Verify program deployment
-	@echo "$(BLUE)Verifying deployment...$(NC)"
-	anchor idl init --filepath target/idl/social_fi_contract.json $$(solana address -k target/deploy/social_fi_contract-keypair.json)
-	@echo "$(GREEN)✓ Deployment verified$(NC)"
-
 #═══════════════════════════════════════════════════════════════════════════════
 # UTILITIES
 #═══════════════════════════════════════════════════════════════════════════════
@@ -296,7 +291,7 @@ pre-deploy: clean build test audit ## Run pre-deployment checks
 create-collection: ## Create collection NFT (one-time setup)
 	@echo "$(BLUE)Creating collection NFT...$(NC)"
 	@command -v tsx >/dev/null 2>&1 || pnpm add -D tsx
-	pnpm tsx scripts/create-collection.ts
+	pnpm tsx migrations/create-collection.ts
 	@echo "$(GREEN)✓ Collection created! Update frontend .env with collection mint$(NC)"
 
 verify-nft: ## Verify old NFT into collection (make verify-nft MINT=<mint_address>)
@@ -306,4 +301,13 @@ verify-nft: ## Verify old NFT into collection (make verify-nft MINT=<mint_addres
 		exit 1; \
 	fi
 	@echo "$(BLUE)Verifying NFT into collection...$(NC)"
-	pnpm tsx scripts/verify-nft-collection.ts $(MINT)
+	pnpm tsx migrations/verify-nft-collection.ts $(MINT)
+
+init-platform: ## Initialize platform config (run once after deploy)
+	@echo "$(BLUE)Initializing platform config...$(NC)"
+	pnpm migration:init
+	@echo "$(GREEN)✓ Platform initialized$(NC)"
+
+verify-deployment: ## Verify program deployment and config
+	@echo "$(BLUE)Verifying deployment...$(NC)"
+	pnpm migration:verify
